@@ -1,9 +1,13 @@
 // app/api/google/connect/route.ts
 import { NextResponse } from "next/server";
-import { oauth2Client } from "@/lib/google";
+import { getOAuthClient } from "@/lib/google";
+
+export const runtime = "nodejs";
 
 export async function GET() {
-  const url = oauth2Client.generateAuthUrl({
+  const client = getOAuthClient();
+
+  const url = client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
     scope: [

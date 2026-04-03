@@ -1,26 +1,18 @@
 // app/api/draft/route.ts
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
-import { oauth2Client } from "@/lib/google";
-import { tokenStore } from "@/lib/store";
+import { auth } from "@clerk/nextjs/server";
+import { getGmailClient } from "@/lib/gmail";
 
-export async function GET() {
-  if (!tokenStore.userTokens) {
-    return NextResponse.json({ error: "Not connected" }, { status: 401 });
-  }
+export async function POST() {
+  const { userId } = await auth();
 
-  oauth2Client.setCredentials(tokenStore.userTokens);
-
-  const gmail = google.gmail({
-    version: "v1",
-    auth: oauth2Client,
-  });
+  const gmail = await getGmailClient(userId!);
 
   const message = [
     "To: test@example.com",
-    "Subject: Draft from Next.js",
+    "Subject: Supabase Draft",
     "",
-    "Hello from App Router 🚀",
+    "Hello from Supabase 🚀",
   ].join("\n");
 
   const encoded = Buffer.from(message)

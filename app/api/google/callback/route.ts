@@ -1,32 +1,47 @@
 // app/api/google/callback/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { oauth2Client } from "@/lib/google";
-import { tokenStore } from "@/lib/store";
+import { getOAuthClient } from "@/lib/google";
+import { supabase } from "@/lib/supabase";
+import { auth } from "@clerk/nextjs/server";
+
+export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const code = req.nextUrl.searchParams.get("code");
-
   if (!code) {
-    return NextResponse.redirect(
-      new URL("/dashboard?error=No authorization code", req.url),
+    return NextResponse.json({ error: "No code" }, { status: 400 });
+  }
+
+  const client = getOAuthClient();
+  const { tokens } = await client.getToken(code);
+
+  if (!tokens.refresh_token) {
+    return NextResponse.json(
+      {
+        error: "No refresh token",
+      },
+      { status: 400 },
     );
   }
 
-  try {
-    const { tokens } = await oauth2Client.getToken(code);
+  // ✅ UPSERT into Supabase
+  const { error } = await supabase.from("google_accounts").upsert({
+    clerk_user_id: userId,
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    expiry_date: tokens.expiry_date,
+    updated_at: new Date().toISOString(),
+  });
 
-    oauth2Client.setCredentials(tokens);
-
-    // ✅ TEMP store
-    tokenStore.userTokens = tokens;
-
-    console.log("TOKENS:", tokens);
-
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  } catch (error) {
-    console.error("OAuth Error:", error);
-    return NextResponse.redirect(
-      new URL("/dashboard?error=Failed to authenticate", req.url),
-    );
+  if (error) {
+    return NextResponse.json({ error }, { status: 500 });
   }
+
+  return NextResponse.redirect("http://localhost:3000/dashboard");
 }
