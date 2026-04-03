@@ -5,10 +5,13 @@ import { google } from "googleapis";
 import { oauth2Client } from "@/lib/google";
 import { tokenStore } from "@/lib/store";
 
-export async function GET() {
+export async function GET(req: Request) {
   if (!tokenStore.userTokens) {
     return NextResponse.json({ error: "Not connected" }, { status: 401 });
   }
+
+  const { searchParams } = new URL(req.url);
+  const pageToken = searchParams.get("pageToken");
 
   oauth2Client.setCredentials(tokenStore.userTokens);
 
@@ -18,17 +21,18 @@ export async function GET() {
   });
 
   try {
-    // Get list of messages
+    // 🔥 STEP 1: Fetch list with pageToken
     const listRes = await gmail.users.messages.list({
       userId: "me",
       maxResults: 10,
+      pageToken: pageToken || undefined,
     });
 
     const messages = listRes.data.messages || [];
 
-    // Fetch full message details for each email
+    // 🔥 STEP 2: Fetch metadata (parallel)
     const fullMessages = await Promise.all(
-      messages.slice(0, 5).map(async (msg: any) => {
+      messages.map(async (msg: any) => {
         const fullMsg = await gmail.users.messages.get({
           userId: "me",
           id: msg.id,
@@ -37,26 +41,23 @@ export async function GET() {
         });
 
         const headers = fullMsg.data.payload?.headers || [];
-        const from =
-          headers.find((h: any) => h.name === "From")?.value || "Unknown";
-        const subject =
-          headers.find((h: any) => h.name === "Subject")?.value ||
-          "(No subject)";
-        const date =
-          headers.find((h: any) => h.name === "Date")?.value || "Unknown";
 
         return {
           id: msg.id,
-          from,
-          subject,
-          date,
+          from: headers.find((h: any) => h.name === "From")?.value || "Unknown",
+          subject:
+            headers.find((h: any) => h.name === "Subject")?.value ||
+            "(No subject)",
+          date: headers.find((h: any) => h.name === "Date")?.value || "Unknown",
           threadId: fullMsg.data.threadId,
         };
       }),
     );
 
+    // 🔥 STEP 3: Return nextPageToken
     return NextResponse.json({
       messages: fullMessages,
+      nextPageToken: listRes.data.nextPageToken || null,
       total: listRes.data.resultSizeEstimate,
     });
   } catch (error: any) {

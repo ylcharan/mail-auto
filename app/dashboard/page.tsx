@@ -4,44 +4,55 @@
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { Input } from "@/components/ui/input";
 
-function Sidebar({
-  active,
-  onNav,
+function EmailDetailView({
+  email,
+  onBack,
 }: {
-  active: string;
-  onNav: (tab: string) => void;
+  email: any;
+  onBack: () => void;
 }) {
-  const navItems = [
-    { key: "inbox", label: "Inbox" },
-    { key: "automation", label: "Automation" },
-    { key: "analytics", label: "Analytics" },
-    { key: "settings", label: "Settings" },
-  ];
-
   return (
-    <aside className="w-64 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 p-4">
-      <h2 className="text-xl font-bold text-black dark:text-white mb-6">
-        Menu
-      </h2>
-      <ul className="space-y-2">
-        {navItems.map((item) => (
-          <li key={item.key}>
-            <button
-              type="button"
-              onClick={() => onNav(item.key)}
-              className={`w-full text-left rounded-lg px-3 py-2 text-sm font-medium transition ${
-                active === item.key
-                  ? "bg-gray-100 text-zinc-900 dark:bg-zinc-800 dark:text-white"
-                  : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              }`}
-            >
-              {item.label}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </aside>
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6">
+      <Button size="sm" variant="outline" onClick={onBack} className="mb-4">
+        ← Back to Inbox
+      </Button>
+      <div className="space-y-4">
+        <div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+            From
+          </p>
+          <p className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+            {email.from}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+            Subject
+          </p>
+          <p className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
+            {email.subject}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+            Date
+          </p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {email.date}
+          </p>
+        </div>
+        <div className="border-t border-zinc-200 dark:border-zinc-800 pt-4">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
+            Thread ID
+          </p>
+          <p className="font-mono text-xs text-zinc-600 dark:text-zinc-400 break-all">
+            {email.threadId}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -49,6 +60,40 @@ function InboxView() {
   const [emails, setEmails] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedEmail, setSelectedEmail] = useState<any | null>(null);
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [totalEmails, setTotalEmails] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const fetchEmails = async (token?: string | null) => {
+    try {
+      setLoading(true);
+      const url = token ? `/api/emails?pageToken=${token}` : "/api/emails";
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError("Gmail not connected. Please connect your Gmail account.");
+        } else {
+          setError("Failed to fetch emails");
+        }
+        return;
+      }
+
+      const data = await response.json();
+      setEmails(data.messages || []);
+      setNextPageToken(data.nextPageToken || null);
+      setTotalEmails(data.total || 0);
+      setError(null);
+      setSelectedEmail(null);
+    } catch (err) {
+      setError("Error fetching emails");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Check for error from callback
@@ -63,39 +108,70 @@ function InboxView() {
       return;
     }
 
-    const fetchEmails = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch("/api/emails");
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            setError("Gmail not connected. Please connect your Gmail account.");
-          } else {
-            setError("Failed to fetch emails");
-          }
-          return;
-        }
-
-        const data = await response.json();
-        setEmails(data.messages || []);
-        setError(null);
-      } catch (err) {
-        setError("Error fetching emails");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchEmails();
   }, []);
 
+  const filteredEmails = emails.filter((email) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      email.from.toLowerCase().includes(query) ||
+      email.subject.toLowerCase().includes(query)
+    );
+  });
+
+  const handleNextPage = () => {
+    if (nextPageToken) {
+      setCurrentPage((prev) => prev + 1);
+      fetchEmails(nextPageToken);
+    }
+  };
+
+  const handleRefresh = () => {
+    setCurrentPage(1);
+    setNextPageToken(null);
+    fetchEmails();
+  };
+
+  if (selectedEmail) {
+    return (
+      <EmailDetailView
+        email={selectedEmail}
+        onBack={() => setSelectedEmail(null)}
+      />
+    );
+  }
+
   return (
     <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6">
-      <h2 className="text-2xl font-semibold text-black dark:text-white mb-4">
-        Inbox
-      </h2>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-black dark:text-white">
+            Inbox
+          </h2>
+          {totalEmails > 0 && (
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+              Total emails: {totalEmails}
+            </p>
+          )}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleRefresh}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
+      </div>
+
+      <div className="mb-6">
+        <Input
+          placeholder="Search emails by sender or subject..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full"
+        />
+      </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -112,11 +188,7 @@ function InboxView() {
             >
               Connect Gmail
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => window.location.reload()}
-            >
+            <Button size="sm" variant="outline" onClick={handleRefresh}>
               Retry
             </Button>
           </div>
@@ -125,123 +197,60 @@ function InboxView() {
         <div className="text-center py-8">
           <p className="text-zinc-500 dark:text-zinc-400">No emails found</p>
         </div>
+      ) : filteredEmails.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="text-zinc-500 dark:text-zinc-400">
+            No emails match your search
+          </p>
+        </div>
       ) : (
-        <div className="space-y-3">
-          {emails.map((email: any) => (
-            <div
-              key={email.id}
-              className="rounded-lg border border-zinc-100 dark:border-zinc-800 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900 cursor-pointer transition"
-            >
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                {email.from}
-              </p>
+        <div>
+          <div className="space-y-3 mb-6">
+            {filteredEmails.map((email: any) => (
+              <div
+                key={email.id}
+                onClick={() => setSelectedEmail(email)}
+                className="rounded-lg border border-zinc-100 dark:border-zinc-800 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-900 cursor-pointer transition"
+              >
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  {email.from}
+                </p>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {email.subject}
+                </p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                  {email.date}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {nextPageToken && (
+            <div className="flex justify-between items-center pt-4 border-t border-zinc-200 dark:border-zinc-800">
               <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                {email.subject}
+                Page {currentPage} • Showing {filteredEmails.length} emails
               </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                {email.date}
-              </p>
+              <Button size="sm" onClick={handleNextPage} disabled={loading}>
+                Load More
+              </Button>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function AutomationView() {
-  const rules = [
-    { name: "Welcome new subscribers", status: "Active" },
-    { name: "Weekly status update", status: "Paused" },
-    { name: "Birthday discount", status: "Active" },
-  ];
-
-  return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6">
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-black dark:text-white">
-          Automation
-        </h2>
-        <Button size="sm">Add Rule</Button>
-      </div>
-      <div className="space-y-3">
-        {rules.map((rule, idx) => (
-          <div
-            key={idx}
-            className="flex justify-between items-center rounded-lg border border-zinc-100 dark:border-zinc-800 p-4"
-          >
-            <div>
-              <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                {rule.name}
-              </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {rule.status}
-              </p>
-            </div>
-            <Button size="sm" variant="outline">
-              Edit
-            </Button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AnalyticsView() {
-  return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6">
-      <h2 className="text-2xl font-semibold text-black dark:text-white mb-4">
-        Analytics
-      </h2>
-      <div className="h-52 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400">
-        Analytics content coming soon...
-      </div>
-    </div>
-  );
-}
-
-function SettingsView() {
-  return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6">
-      <h2 className="text-2xl font-semibold text-black dark:text-white mb-4">
-        Settings
-      </h2>
-      <div className="h-32 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400">
-        Settings content coming soon...
-      </div>
-    </div>
-  );
-}
-
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState("inbox");
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case "inbox":
-        return <InboxView />;
-      case "automation":
-        return <AutomationView />;
-      case "analytics":
-        return <AnalyticsView />;
-      case "settings":
-        return <SettingsView />;
-      default:
-        return <InboxView />;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-black dark:text-white">
-      <div className="flex">
-        <Sidebar active={activeTab} onNav={setActiveTab} />
-
-        <main className="flex-1 p-6 sm:p-8">
-          <h1 className="text-4xl font-bold mb-6">Dashboard</h1>
-          {renderContent()}
-        </main>
-      </div>
+      <main className="max-w-6xl mx-auto p-6 sm:p-8">
+        <h1 className="text-4xl font-bold mb-2">Emails</h1>
+        <p className="text-zinc-600 dark:text-zinc-400 mb-8">
+          Manage and view your Gmail inbox
+        </p>
+        <InboxView />
+      </main>
     </div>
   );
 }
