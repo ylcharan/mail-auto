@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from "react";
 import { useEmailFetch } from "./useEmailFetch";
-import { EmailDetailView } from "./EmailDetailView";
 import { EmailSearchBar } from "./EmailSearchBar";
 import { EmailList } from "./EmailList";
 import { InboxHeader } from "./InboxHeader";
@@ -10,7 +9,6 @@ import { PaginationFooter } from "./PaginationFooter";
 import { ErrorState } from "./states/ErrorState";
 import { LoadingState } from "./states/LoadingState";
 import { EmptyState } from "./states/EmptyState";
-import type { Email } from "./types";
 
 /**
  * Component: Inbox View
@@ -21,7 +19,6 @@ export function InboxView() {
     useEmailFetch();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Filter emails based on search query
@@ -46,16 +43,6 @@ export function InboxView() {
       fetchEmails(nextPageToken);
     }
   }, [nextPageToken, fetchEmails]);
-
-  // Show email detail view when selected
-  if (selectedEmail) {
-    return (
-      <EmailDetailView
-        email={selectedEmail}
-        onBack={() => setSelectedEmail(null)}
-      />
-    );
-  }
 
   // Main inbox view
   return (
@@ -86,10 +73,7 @@ export function InboxView() {
       {!loading && !error && filteredEmails.length > 0 && (
         <>
           <div className="mb-6">
-            <EmailList
-              emails={filteredEmails}
-              onSelectEmail={setSelectedEmail}
-            />
+            <EmailList emails={filteredEmails} />
           </div>
 
           <PaginationFooter

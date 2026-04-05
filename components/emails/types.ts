@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Email-related type definitions
  */
@@ -23,7 +24,6 @@ export interface EmailDetailViewProps {
 
 export interface EmailListProps {
   emails: Email[];
-  onSelectEmail: (email: Email) => void;
 }
 
 export interface EmailSearchBarProps {
