@@ -4,6 +4,7 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { getGmailClient } from "@/lib/gmail";
 import SummarizeThreadButton from "@/components/emails/SummarizeThreadButton";
+import ReplyBox from "@/components/emails/ReplyBox";
 
 interface ThreadHeader {
   name: string;
@@ -265,25 +266,46 @@ export default async function EmailThreadPage({
           </Suspense>
         </div>
       </main>{" "}
-      <SummarizeThreadButton
-        className="mt-8 mr-2"
-        content={
-          thread
-            ?.sort((a, b) => Number(a.internalDate) - Number(b.internalDate))
-            .map((msg) => {
-              const headers = msg.payload.headers;
-              const getHeader = (name: string) =>
-                headers.find((h) => h.name === name)?.value || "";
+      <div className="flex flex-col gap-4">
+        <SummarizeThreadButton
+          className="mt-8 mr-2"
+          content={
+            thread
+              ?.sort((a, b) => Number(a.internalDate) - Number(b.internalDate))
+              .map((msg) => {
+                const headers = msg.payload.headers;
+                const getHeader = (name: string) =>
+                  headers.find((h) => h.name === name)?.value || "";
 
-              return `From: ${getHeader("From")}\nDate: ${getHeader(
-                "Date",
-              )}\nSubject: ${getHeader("Subject")}\n\n${getMessageBody(
-                msg.payload,
-              )}`;
-            })
-            .join("\n\n---\n\n") || ""
-        }
-      />{" "}
+                return `From: ${getHeader("From")}\nDate: ${getHeader(
+                  "Date",
+                )}\nSubject: ${getHeader("Subject")}\n\n${getMessageBody(
+                  msg.payload,
+                )}`;
+              })
+              .join("\n\n---\n\n") || ""
+          }
+        />
+        <ReplyBox
+          className="mt-8 mr-2"
+          thread={
+            thread
+              ?.sort((a, b) => Number(a.internalDate) - Number(b.internalDate))
+              .map((msg) => {
+                const headers = msg.payload.headers;
+                const getHeader = (name: string) =>
+                  headers.find((h) => h.name === name)?.value || "";
+
+                return `From: ${getHeader("From")}\nDate: ${getHeader(
+                  "Date",
+                )}\nSubject: ${getHeader("Subject")}\n\n${getMessageBody(
+                  msg.payload,
+                )}`;
+              })
+              .join("\n\n---\n\n") || ""
+          }
+        />
+      </div>{" "}
     </div>
   );
 }

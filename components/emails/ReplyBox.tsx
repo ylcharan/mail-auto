@@ -2,25 +2,18 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Copy } from "@phosphor-icons/react";
 import gsap from "gsap";
 
-interface SummaryResult {
-  summary: string[];
-  actions: string[];
-}
-
-interface SummarizeThreadButtonProps {
-  content: string;
+interface ReplyBoxProps {
+  thread: string;
   className?: string;
 }
 
-export default function SummarizeThreadButton({
-  content,
-  className,
-}: SummarizeThreadButtonProps) {
+export default function ReplyBox({ thread, className }: ReplyBoxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [summary, setSummary] = useState<SummaryResult | null>(null);
+  const [reply, setReply] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -48,7 +41,7 @@ export default function SummarizeThreadButton({
 
       // Stagger content items
       gsap.fromTo(
-        dropdownRef.current.querySelectorAll("li, .space-y-3 > div"),
+        dropdownRef.current.querySelectorAll("textarea, .space-y-3 > div"),
         {
           opacity: 0,
           x: -15,
@@ -74,29 +67,26 @@ export default function SummarizeThreadButton({
     }
   }, [isOpen]);
 
-  async function fetchSummary() {
+  async function generateReply() {
     if (isLoading) return;
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/summarize", {
+      const res = await fetch("/api/generate-reply", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ thread }),
       });
 
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result?.error || "Failed to summarize");
+      if (!res.ok) {
+        const result = await res.json();
+        throw new Error(result?.error || "Failed to generate reply");
       }
 
-      const result = await response.json();
-      setSummary(result);
+      const data = await res.json();
+      setReply(data.reply);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to summarize message",
-      );
+      setError(err instanceof Error ? err.message : "Unable to generate reply");
     } finally {
       setIsLoading(false);
     }
@@ -106,24 +96,31 @@ export default function SummarizeThreadButton({
     const opening = !isOpen;
     setIsOpen(opening);
 
-    // Only fetch on first open, and only if no summary or error
-    if (opening && !summary && !error && !isLoading) {
-      fetchSummary();
+    // Only generate on first open, and only if no reply or error
+    if (opening && !reply && !error && !isLoading) {
+      generateReply();
     }
   }
 
   function handleRetry() {
-    setSummary(null);
+    setReply(null);
     setError(null);
-    fetchSummary();
+    generateReply();
   }
 
-  const statusLabel = summary ? "Ready" : isLoading ? "Loading..." : "Pending";
+  function copyToClipboard() {
+    if (reply) {
+      navigator.clipboard.writeText(reply);
+      // You could add a toast notification here
+    }
+  }
+
+  const statusLabel = reply ? "Ready" : isLoading ? "Loading..." : "Pending";
 
   const getStatusColor = () => {
     if (error)
       return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300";
-    if (summary)
+    if (reply)
       return "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300";
     if (isLoading)
       return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300";
@@ -142,28 +139,39 @@ export default function SummarizeThreadButton({
         aria-expanded={isOpen}
         className="inline-flex items-center gap-2 rounded-full border cursor-pointer border-blue-950 bg-white px-4 py-2 text-sm font-semibold text-blue-950 transition hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-sky-400"
       >
-        {isLoading ? "Summarizing..." : isOpen ? "Hide Summary" : "Summarize"}
+        {isLoading ? "Generating..." : isOpen ? "Hide Reply" : "Generate Reply"}
       </Button>
 
       {isOpen && (
         <div
           ref={dropdownRef}
-          className="mt-2 min-w-70 rounded-2xl border border-zinc-200 bg-white p-4 text-sm shadow-lg shadow-zinc-200/40 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/20"
+          className="mt-2 min-w-100 rounded-2xl border border-zinc-200 bg-white p-4 text-sm shadow-lg shadow-zinc-200/40 dark:border-zinc-800 dark:bg-zinc-950 dark:shadow-black/20"
         >
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Summary
+              Generated Reply
             </p>
-            <span
-              className={`rounded-full px-2 py-1 text-xs ${getStatusColor()}`}
-            >
-              {statusLabel}
-            </span>
+            <div className="flex items-center gap-2">
+              {reply && (
+                <button
+                  onClick={copyToClipboard}
+                  className="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                  title="Copy to clipboard"
+                >
+                  <Copy size={16} />
+                </button>
+              )}
+              <span
+                className={`rounded-full px-2 py-1 text-xs ${getStatusColor()}`}
+              >
+                {statusLabel}
+              </span>
+            </div>
           </div>
 
           {isLoading ? (
             <p className="text-zinc-500 dark:text-zinc-400">
-              Summarizing the thread...
+              Generating reply...
             </p>
           ) : error ? (
             <div className="space-y-2">
@@ -175,47 +183,17 @@ export default function SummarizeThreadButton({
                 Retry
               </button>
             </div>
-          ) : summary ? (
-            <div className="space-y-3">
-              <div>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                  Key Points
-                </p>
-                <ul className="space-y-1">
-                  {summary.summary.map((point, i) => (
-                    <li
-                      key={i}
-                      className="flex gap-2 text-zinc-700 dark:text-zinc-300"
-                    >
-                      <span className="mt-0.5 text-zinc-400">•</span>
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {summary.actions.length > 0 && (
-                <div>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                    Action Items
-                  </p>
-                  <ul className="space-y-1">
-                    {summary.actions.map((item, i) => (
-                      <li
-                        key={i}
-                        className="flex gap-2 text-zinc-700 dark:text-zinc-300"
-                      >
-                        <span className="mt-0.5 text-blue-400">→</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+          ) : reply ? (
+            <textarea
+              className="w-full resize-none rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+              rows={8}
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              placeholder="Generated reply will appear here..."
+            />
           ) : (
             <p className="text-zinc-500 dark:text-zinc-400">
-              Click the button to generate a summary for this thread.
+              Click the button to generate a reply for this thread.
             </p>
           )}
         </div>
