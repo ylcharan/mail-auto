@@ -154,7 +154,84 @@ npm run build
 npm start
 ```
 
-## 📖 Usage
+## � Deployment
+
+### Environment Variables for Production
+
+Update your environment variables for production deployment:
+
+```env
+# Production URLs
+NEXT_PUBLIC_BASE_URL=https://yourdomain.com
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=https://yourdomain.com/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=https://yourdomain.com/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=https://yourdomain.com/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=https://yourdomain.com/dashboard
+
+# Production Google OAuth
+GOOGLE_REDIRECT_URI=https://yourdomain.com/api/google/callback
+
+# Production Clerk Keys (switch from test to production)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_...
+CLERK_SECRET_KEY=sk_live_...
+
+# Keep other variables the same
+OPENAI_API_KEY=...
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+### Google OAuth Setup for Production
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Update your OAuth 2.0 credentials:
+   - Add your production domain to authorized origins
+   - Add production redirect URI: `https://yourdomain.com/api/google/callback`
+
+### Clerk Production Setup
+
+1. Go to [Clerk Dashboard](https://dashboard.clerk.com/)
+2. Switch to production environment
+3. Update the following URLs:
+   - Home URL: `https://yourdomain.com`
+   - Sign-in URL: `https://yourdomain.com/sign-in`
+   - Sign-up URL: `https://yourdomain.com/sign-up`
+   - After sign-in URL: `https://yourdomain.com/dashboard`
+   - After sign-up URL: `https://yourdomain.com/dashboard`
+
+### Recommended Deployment Platforms
+
+#### Vercel (Recommended)
+
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+#### Netlify
+
+```bash
+npm run build
+# Deploy the .next folder
+```
+
+#### Railway/DigitalOcean
+
+- Connect your repository
+- Set environment variables
+- Deploy automatically
+
+### Post-Deployment Checklist
+
+- [ ] Update Google OAuth redirect URIs
+- [ ] Switch Clerk to production keys and URLs
+- [ ] Set `NEXT_PUBLIC_BASE_URL` to your production domain
+- [ ] Test authentication flow
+- [ ] Test Gmail integration
+- [ ] Test AI features (summarization and reply generation)
+- [ ] Verify all environment variables are set correctly
+
+## �📖 Usage
 
 ### 1. Authentication
 

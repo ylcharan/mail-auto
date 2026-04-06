@@ -43,5 +43,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error }, { status: 500 });
   }
 
-  return NextResponse.redirect("http://localhost:3000/dashboard");
+  return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard`);
 }

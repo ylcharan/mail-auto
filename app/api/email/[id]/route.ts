@@ -7,8 +7,8 @@ import { getGmailClient } from "@/lib/gmail";
 export const runtime = "nodejs";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } },
+  _req: Request,
+  ctx: RouteContext<"/api/email/[id]">,
 ) {
   const { userId } = await auth();
 
@@ -17,10 +17,11 @@ export async function GET(
   }
 
   const gmail = await getGmailClient(userId);
+  const { id } = await ctx.params;
 
   const message = await gmail.users.messages.get({
     userId: "me",
-    id: params.id,
+    id,
     format: "full",
   });
 
