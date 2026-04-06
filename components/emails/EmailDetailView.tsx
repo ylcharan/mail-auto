@@ -9,11 +9,16 @@ import type { EmailDetailViewProps } from "./types";
 export function EmailDetailView({ email, onBack }: EmailDetailViewProps) {
   return (
     <article className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6">
-      <Button size="sm" variant="outline" onClick={onBack} className="mb-4">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onBack}
+        className="mb-4 cursor-pointer"
+      >
         ← Back to Inbox
       </Button>
 
-      <div className="space-y-4">
+      <div className="space-y-2">
         <DetailField label="From" value={email.from} />
         <DetailField label="Subject" value={email.subject} />
         <DetailField label="Date" value={email.date} />

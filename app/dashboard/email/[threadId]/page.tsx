@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { getGmailClient } from "@/lib/gmail";
+import SummarizeThreadButton from "@/components/emails/SummarizeThreadButton";
 
 interface ThreadHeader {
   name: string;
@@ -218,8 +219,8 @@ export default async function EmailThreadPage({
   const thread = await fetchThread(threadId);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-black dark:text-white">
-      <main className="max-w-4xl mx-auto p-6 sm:p-8">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-black dark:text-white flex px-8 py-8">
+      <main className="max-w-4xl w-[70%] mx-auto p-6 sm:p-8">
         <div className="mb-6">
           <Link href="/dashboard">
             <Button variant="outline" size="sm">
@@ -229,17 +230,21 @@ export default async function EmailThreadPage({
         </div>
 
         <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-1">Conversation</h1>
-            <p className="text-zinc-600 dark:text-zinc-400">
-              {thread?.length === 1
-                ? "1 message"
-                : `${thread?.length || 0} messages`}{" "}
-              • Started{" "}
-              {thread?.[0]?.payload?.headers?.find(
-                (h: ThreadHeader) => h.name === "Date",
-              )?.value || "Unknown date"}
-            </p>
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold mb-1">Conversation</h1>
+                <p className="text-zinc-600 dark:text-zinc-400">
+                  {thread?.length === 1
+                    ? "1 message"
+                    : `${thread?.length || 0} messages`}{" "}
+                  • Started{" "}
+                  {thread?.[0]?.payload?.headers?.find(
+                    (h: ThreadHeader) => h.name === "Date",
+                  )?.value || "Unknown date"}
+                </p>
+              </div>
+            </div>
           </div>
 
           <Suspense fallback={<ThreadSkeleton />}>
@@ -259,7 +264,26 @@ export default async function EmailThreadPage({
             )}
           </Suspense>
         </div>
-      </main>
+      </main>{" "}
+      <SummarizeThreadButton
+        className="mt-8 mr-2"
+        content={
+          thread
+            ?.sort((a, b) => Number(a.internalDate) - Number(b.internalDate))
+            .map((msg) => {
+              const headers = msg.payload.headers;
+              const getHeader = (name: string) =>
+                headers.find((h) => h.name === name)?.value || "";
+
+              return `From: ${getHeader("From")}\nDate: ${getHeader(
+                "Date",
+              )}\nSubject: ${getHeader("Subject")}\n\n${getMessageBody(
+                msg.payload,
+              )}`;
+            })
+            .join("\n\n---\n\n") || ""
+        }
+      />{" "}
     </div>
   );
 }
