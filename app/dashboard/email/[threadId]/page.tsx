@@ -266,7 +266,10 @@ export default async function EmailThreadPage({
           </Suspense>
         </div>
       </main>{" "}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 items-end">
+        <div>
+          <h2 className="text-2xl font-bold mb-1 ml-auto">AI Tools</h2>
+        </div>
         <SummarizeThreadButton
           className="mt-8 mr-2"
           content={
