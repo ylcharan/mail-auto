@@ -9,6 +9,7 @@ import { PaginationFooter } from "./PaginationFooter";
 import { ErrorState } from "./states/ErrorState";
 import { LoadingState } from "./states/LoadingState";
 import { EmptyState } from "./states/EmptyState";
+import type { Email } from "./types";
 
 /**
  * Component: Inbox View
@@ -20,6 +21,20 @@ export function InboxView() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortMode, setSortMode] = useState<"default" | "priority">("default");
+
+  const getPriorityRank = (email: Email) => {
+    switch (email.classification?.priority) {
+      case "high":
+        return 0;
+      case "medium":
+        return 1;
+      case "low":
+        return 2;
+      default:
+        return 3;
+    }
+  };
 
   // Filter emails based on search query
   const filteredEmails = emails.filter((email) => {
@@ -29,6 +44,11 @@ export function InboxView() {
       email.subject.toLowerCase().includes(query)
     );
   });
+
+  const displayedEmails =
+    sortMode === "priority"
+      ? [...filteredEmails].sort((a, b) => getPriorityRank(a) - getPriorityRank(b))
+      : filteredEmails;
 
   // Handlers
   const handleRefresh = useCallback(() => {
@@ -44,6 +64,10 @@ export function InboxView() {
     }
   }, [nextPageToken, fetchEmails]);
 
+  const handleToggleSort = useCallback(() => {
+    setSortMode((prev) => (prev === "default" ? "priority" : "default"));
+  }, []);
+
   // Main inbox view
   return (
     <section className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6">
@@ -51,6 +75,8 @@ export function InboxView() {
         totalEmails={totalEmails}
         onRefresh={handleRefresh}
         isLoading={loading}
+        sortMode={sortMode}
+        onToggleSort={handleToggleSort}
       />
 
       <EmailSearchBar value={searchQuery} onChange={setSearchQuery} />
@@ -65,20 +91,20 @@ export function InboxView() {
 
       {!loading &&
         !error &&
-        filteredEmails.length === 0 &&
+        displayedEmails.length === 0 &&
         emails.length > 0 && (
           <EmptyState message="No emails match your search" />
         )}
 
-      {!loading && !error && filteredEmails.length > 0 && (
+      {!loading && !error && displayedEmails.length > 0 && (
         <>
           <div className="mb-6">
-            <EmailList emails={filteredEmails} />
+            <EmailList emails={displayedEmails} />
           </div>
 
           <PaginationFooter
             currentPage={currentPage}
-            emailCount={filteredEmails.length}
+            emailCount={displayedEmails.length}
             hasNextPage={!!nextPageToken}
             isLoading={loading}
             onLoadMore={handleLoadMore}

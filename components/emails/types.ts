@@ -9,6 +9,14 @@ export interface Email {
   subject: string;
   date: string;
   threadId: string;
+  classification?: EmailClassification;
+  classificationError?: string;
+}
+
+export interface EmailClassification {
+  priority: "high" | "medium" | "low";
+  requires_action: boolean;
+  category: "meeting" | "work" | "promo" | "other";
 }
 
 export interface EmailsResponse {
@@ -36,6 +44,8 @@ export interface InboxHeaderProps {
   totalEmails: number;
   onRefresh: () => void;
   isLoading: boolean;
+  sortMode: "default" | "priority";
+  onToggleSort: () => void;
 }
 
 export interface PaginationFooterProps {

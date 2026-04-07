@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Email, EmailsResponse } from "./types";
+import { Email, EmailClassification, EmailsResponse } from "./types";
 
 /**
  * Custom hook for email fetching logic
@@ -12,6 +12,31 @@ export const useEmailFetch = () => {
   const [error, setError] = useState<string | null>(null);
   const [nextPageToken, setNextPageToken] = useState<string | null>(null);
   const [totalEmails, setTotalEmails] = useState(0);
+
+  const classifyEmail = useCallback(
+    async (email: Email): Promise<EmailClassification | null> => {
+      const response = await fetch("/api/classify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: `
+From: ${email.from}
+Subject: ${email.subject}
+Date: ${email.date}
+          `.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to classify email");
+      }
+
+      return response.json();
+    },
+    [],
+  );
 
   const fetchEmails = useCallback(async (token?: string | null) => {
     try {
@@ -28,16 +53,40 @@ export const useEmailFetch = () => {
       }
 
       const data: EmailsResponse = await response.json();
-      setEmails(data.messages || []);
+      const messages = data.messages || [];
+      setEmails(messages);
       setNextPageToken(data.nextPageToken || null);
       setTotalEmails(data.total || 0);
       setError(null);
+
+      const classifiedMessages = await Promise.all(
+        messages.map(async (email) => {
+          try {
+            const classification = await classifyEmail(email);
+
+            return {
+              ...email,
+              classification: classification || undefined,
+              classificationError: undefined,
+            };
+          } catch (classificationError) {
+            console.error("Classification Error:", classificationError);
+
+            return {
+              ...email,
+              classificationError: "Unavailable",
+            };
+          }
+        }),
+      );
+
+      setEmails(classifiedMessages);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error fetching emails");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [classifyEmail]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
