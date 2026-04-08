@@ -1,5 +1,19 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
+import { NextResponse } from "next/server";
+
+const MAINTENANCE_MODE = true;
+
+export default function middleware(req: Request) {
+  if (MAINTENANCE_MODE) {
+    return new NextResponse("Site temporarily down", {
+      status: 503,
+    });
+  }
+
+  return NextResponse.next();
+}
+}
 export const proxy = clerkMiddleware(); // proxy.ts
 export const config = {
   matcher: [
